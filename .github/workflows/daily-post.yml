@@ -1,0 +1,24 @@
+name: Daily X Post
+
+on:
+  schedule:
+    # 毎日 12:00 UTC = 21:00 JST に実行（GitHubのcronはUTC・多少の遅延あり）
+    - cron: '0 12 * * *'
+  workflow_dispatch:   # 手動実行ボタン（テスト用。ActionsタブからRun workflow）
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Post to X
+        env:
+          X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+          X_CONSUMER_SECRET: ${{ secrets.X_CONSUMER_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: python post.py
