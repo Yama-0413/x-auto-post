@@ -1,0 +1,28 @@
+name: Post Text to X
+
+# クラウドのルーティーンが生成した本文を受け取ってX投稿する（手動/API起動）
+on:
+  workflow_dispatch:
+    inputs:
+      text:
+        description: "投稿本文"
+        required: true
+        type: string
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install requests requests-oauthlib
+      - name: Post to X
+        env:
+          POST_TEXT: ${{ inputs.text }}
+          X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+          X_CONSUMER_SECRET: ${{ secrets.X_CONSUMER_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: python post_text.py
