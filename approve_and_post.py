@@ -2,12 +2,14 @@
 """Slack #times_yama の「今日の考察案」に 👍 が付いていれば、その本文を X に投稿する。
 18:00 JST に GitHub Actions から実行。承認(👍)が無ければ何もしない。
 
+本文は `===本文===` と `===END===` の間から抜き出し、Slack記法(メンション/リンク/署名)を除去、
+Slackショートコード絵文字(:fire: 等)は Unicode に変換してから投稿する。
+
 必要な環境変数(GitHub Secrets):
-  SLACK_BOT_TOKEN     : xoxb-... （scope: channels:history or groups:history, reactions:read, chat:write）
-  SLACK_CHANNEL_ID    : #times_yama のチャンネルID（C... / G...）
-  X_CONSUMER_KEY 等4つ : Xの OAuth1 鍵
+  SLACK_BOT_TOKEN, SLACK_CHANNEL_ID, X_CONSUMER_KEY 等4つ
 """
 import os
+import re
 import sys
 import time
 
@@ -16,8 +18,35 @@ from requests_oauthlib import OAuth1
 
 TWEETS_URL = "https://api.x.com/2/tweets"
 X_ENV = ("X_CONSUMER_KEY", "X_CONSUMER_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_TOKEN_SECRET")
-MARKER = "===本文==="          # ルーティーンがこの後ろに考察本文を置く
+MARKER = "===本文==="
+END_MARKER = "===END==="
 OK_REACTIONS = {"+1", "thumbsup"}  # 👍
+
+MENTION_RE = re.compile(r"<[@#!][^>]+>")                 # <@U..> <#C..|name> <!here>
+LINK_RE = re.compile(r"<(https?://[^>|]+)(?:\|[^>]*)?>")  # <http..|text> -> http..
+SHORTCODES = {
+    ":flushed:": "😳", ":pirate_flag:": "🏴‍☠️", ":fire:": "🔥", ":eyes:": "👀",
+    ":thinking_face:": "🤔", ":exploding_head:": "🤯", ":sparkles:": "✨",
+    ":thumbsup:": "👍", ":+1:": "👍", ":sob:": "😭", ":scream:": "😱",
+    ":muscle:": "💪", ":zap:": "⚡", ":ocean:": "🌊", ":anchor:": "⚓",
+    ":crown:": "👑", ":skull:": "💀", ":boom:": "💥", ":dizzy:": "💫",
+    ":bulb:": "💡", ":star2:": "🌟", ":star:": "⭐", ":point_up:": "☝️",
+    ":raised_hands:": "🙌", ":clap:": "👏", ":rocket:": "🚀", ":question:": "❓",
+}
+
+
+def clean_body(text):
+    body = text.split(MARKER, 1)[1] if MARKER in text else text
+    if END_MARKER in body:
+        body = body.split(END_MARKER, 1)[0]
+    body = LINK_RE.sub(r"\1", body)
+    body = MENTION_RE.sub("", body)
+    body = "\n".join(ln for ln in body.splitlines() if "使用して送信されました" not in ln)
+    for sc, em in SHORTCODES.items():
+        body = body.replace(sc, em)
+    # 連続空行を最大1つに
+    body = re.sub(r"\n{3,}", "\n\n", body)
+    return body.strip()
 
 
 def slack(method, params, post=False):
@@ -41,7 +70,7 @@ def notify(channel, text, thread_ts=None):
     try:
         slack("chat.postMessage", body, post=True)
     except SystemExit:
-        pass  # 通知失敗は致命的でない
+        pass
 
 
 def main():
@@ -61,16 +90,16 @@ def main():
             draft = m
             break
     if not draft:
-        print("今日の『考察案』が見つかりません（朝のルーティーン未投稿 or 古い）。何もしません。")
+        print("今日の『考察案』が見つかりません。何もしません。")
         return
 
     approved = any(rx.get("name") in OK_REACTIONS for rx in draft.get("reactions", []))
     if not approved:
         print("👍が付いていないので投稿しません。")
-        notify(channel, "🕕 18時になりましたが 👍 が無かったので、今日の考察は投稿しませんでした。", draft["ts"])
+        notify(channel, "🕕 18時ですが 👍 が無かったので今日は投稿を見送りました。", draft["ts"])
         return
 
-    text = draft["text"].split(MARKER, 1)[1].strip()
+    text = clean_body(draft["text"])
     if not text:
         sys.exit("本文が空です。")
 
