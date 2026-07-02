@@ -1,9 +1,9 @@
 name: Approve and Post to X
 
-# 毎日18:00 JST: Slack #times_yama の「今日の考察案」に👍があればX投稿
+# 毎日18:17 JST: Slack #times_yama の「今日の考察案」に👍があればX投稿
 on:
   schedule:
-    - cron: '0 9 * * *'   # 09:00 UTC = 18:00 JST
+    - cron: '17 9 * * *'   # 09:17 UTC = 18:17 JST（正時=最混雑帯を避け、定期実行の取りこぼしを低減）
   workflow_dispatch:        # 手動実行（テスト用）
 
 jobs:
