@@ -63,10 +63,12 @@ def slack(method, params, post=False):
     return d
 
 
-def notify(channel, text, thread_ts=None):
+def notify(channel, text, thread_ts=None, broadcast=False):
     body = {"channel": channel, "text": text}
     if thread_ts:
         body["thread_ts"] = thread_ts
+        if broadcast:
+            body["reply_broadcast"] = True  # スレッド返信をチャンネル本体にも表示（「以下にも投稿する」）
     try:
         slack("chat.postMessage", body, post=True)
     except SystemExit:
@@ -110,7 +112,7 @@ def main():
         d = r.json().get("data", {})
         url = f"https://x.com/i/status/{d.get('id')}"
         print(f"OK 投稿: {url}")
-        notify(channel, f"✅ Xに投稿しました！\n{url}", draft["ts"])
+        notify(channel, f"✅ Xに投稿しました！\n{url}", draft["ts"], broadcast=True)
     else:
         print(f"FAIL {r.status_code}: {r.text}")
         notify(channel, f"⚠️ X投稿に失敗 {r.status_code}: {r.text[:200]}", draft["ts"])
