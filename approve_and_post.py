@@ -45,6 +45,8 @@ def clean_body(text):
     body = "\n".join(ln for ln in body.splitlines() if "使用して送信されました" not in ln)
     for sc, em in SHORTCODES.items():
         body = body.replace(sc, em)
+    # 変換表にないショートコードは X で文字列のまま出てしまうので除去
+    body = re.sub(r":[a-z0-9_+-]+:", "", body)
     # 連続空行を最大1つに
     body = re.sub(r"\n{3,}", "\n\n", body)
     return body.strip()
