@@ -8,6 +8,7 @@ Slackショートコード絵文字(:fire: 等)は Unicode に変換してから
 必要な環境変数(GitHub Secrets):
   SLACK_BOT_TOKEN, SLACK_CHANNEL_ID, X_CONSUMER_KEY 等4つ
 """
+import datetime
 import os
 import re
 import sys
@@ -75,6 +76,16 @@ def notify(channel, text, thread_ts=None, broadcast=False):
         pass
 
 
+def save_history(text, url):
+    """投稿済み考察を history/ に保存する（重複防止用の記憶。workflow側でcommit/push）。"""
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).date().isoformat()
+    os.makedirs("history", exist_ok=True)
+    path = f"history/{today}.md"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(f"# {today} 投稿済み考察\n\nURL: {url}\n\n{text}\n")
+    print(f"history保存: {path}")
+
+
 def main():
     missing = [k for k in X_ENV if not os.environ.get(k)]
     if missing:
@@ -112,6 +123,7 @@ def main():
         d = r.json().get("data", {})
         url = f"https://x.com/i/status/{d.get('id')}"
         print(f"OK 投稿: {url}")
+        save_history(text, url)
         notify(channel, f"✅ Xに投稿しました！\n{url}", draft["ts"], broadcast=True)
     else:
         print(f"FAIL {r.status_code}: {r.text}")

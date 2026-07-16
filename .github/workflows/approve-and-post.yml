@@ -6,6 +6,9 @@ on:
     - cron: '17 9 * * *'   # 09:17 UTC = 18:17 JST（正時=最混雑帯を避け、定期実行の取りこぼしを低減）
   workflow_dispatch:        # 手動実行（テスト用）
 
+permissions:
+  contents: write   # 投稿済み考察を history/ にコミットするため
+
 jobs:
   post:
     runs-on: ubuntu-latest
@@ -24,3 +27,14 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
         run: python approve_and_post.py
+      - name: Commit posted history
+        run: |
+          if [ -n "$(git status --porcelain history/)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add history/
+            git commit -m "history: $(date -u +%F) の投稿済み考察を記録"
+            git push
+          else
+            echo "history に変更なし（投稿見送り or 失敗）"
+          fi
